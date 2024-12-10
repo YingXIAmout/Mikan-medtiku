@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "💗 刷题鞭策酱",
+  "version": "1.0",
+  "description": "一个可爱的刷题助手，会在你做错题时给予小小的鞭策呢～",
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "images/icon48.png"
+  },
+  "permissions": [
+    "webRequest",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://analysis.leetcode.cn/*",
+    "https://leetcode.cn/submissions/detail/*/check/"
+  ],
+  "background": {
+    "service_worker": "js/background.js"
+  },
+  "icons": {
+    "48": "images/icon48.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.leetcode.cn/*"
+      ],
+      "js": ["js/content.js"],
+      "run_at": "document_start"
+    }
+  ]
+} 

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>刷题鞭策酱</title>
+  <link rel="stylesheet" href="css/popup.css">
+</head>
+<body>
+  <div class="container">
+    <div class="settings">
+      <div class="input-group">
+        <label for="wsUrl">🔗 连接地址:</label>
+        <div class="input-with-button">
+          <input type="text" id="wsUrl">
+          <button id="saveSettings">💾 保存</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="status" id="wsStatus">🌐 连接状态: 检查中...</div>
+    <div class="status" id="deviceStatus">🔌 设备状态: 未连接</div>
+
+    <div class="channel-control">
+      <h3>🌸 前边控制</h3>
+      <div>
+        <label>💗 强度:</label>
+        <input type="number" id="strengthA" min="0" max="100" value="20">
+        <span class="soft-limit">⚡ 上限: <span id="softLimitA">0</span></span>
+      </div>
+      <div style="margin-top: 8px;">
+        <label>📊 波形:</label>
+        <select id="waveA">
+          <option value="1">💕 波形1</option>
+          <option value="2">💓 波形2</option>
+          <option value="3">💗 波形3</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="channel-control">
+      <h3>🌺 后边控制</h3>
+      <div>
+        <label>💗 强度:</label>
+        <input type="number" id="strengthB" min="0" max="100" value="20">
+        <span class="soft-limit">⚡ 上限: <span id="softLimitB">0</span></span>
+      </div>
+      <div style="margin-top: 8px;">
+        <label>📊 波形:</label>
+        <select id="waveB">
+          <option value="1">💕 波形1</option>
+          <option value="2">💓 波形2</option>
+          <option value="3">💗 波形3</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div id="qrcodeContainer">
+    <div id="qrcode"></div>
+  </div>
+  <div class="button-group">
+    <button id="reconnectBtn">🔄 重新连接</button>
+    <button id="stopPulseBtn" class="red" disabled>⏹️ 断开连接</button>
+  </div>
+  <script src="js/qrcode.min.js"></script>
+  <script src="js/popup.js"></script>
+</body>
+</html> 

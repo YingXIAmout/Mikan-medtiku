@@ -1,0 +1,180 @@
+body {
+  width: 320px;
+  padding: 15px;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: #fff5f7;
+  color: #4a5568;
+}
+
+.container {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 20px;
+  padding: 15px;
+  box-shadow: 0 4px 15px rgba(255, 182, 193, 0.2);
+  border: 1px solid rgba(255, 182, 193, 0.3);
+}
+
+.settings {
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 15px;
+  padding: 12px;
+  margin-bottom: 15px;
+  border: 1px solid rgba(255, 192, 203, 0.2);
+}
+
+.settings input {
+  border: 1px solid #ffd1dc;
+  border-radius: 10px;
+  padding: 6px 12px;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.settings input:focus {
+  border-color: #ff8fa3;
+  box-shadow: 0 0 0 3px rgba(255, 143, 163, 0.2);
+}
+
+.channel-control {
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 15px;
+  padding: 15px;
+  margin: 15px 0;
+  border: 1px solid rgba(255, 192, 203, 0.2);
+  transition: all 0.3s ease;
+}
+
+.channel-control:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 182, 193, 0.3);
+}
+
+.channel-control h3 {
+  color: #ff6b8b;
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  text-align: center;
+}
+
+.channel-control input[type="number"] {
+  border: 1px solid #ffd1dc;
+  border-radius: 10px;
+  padding: 5px;
+  width: 60px;
+  outline: none;
+}
+
+.channel-control select {
+  border: 1px solid #ffd1dc;
+  border-radius: 10px;
+  padding: 5px;
+  outline: none;
+  background: white;
+}
+
+.status {
+  padding: 8px;
+  border-radius: 12px;
+  margin: 8px 0;
+  text-align: center;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.status.connected {
+  color: #38a169;
+  background: rgba(198, 246, 213, 0.3);
+}
+
+.status.disconnected {
+  color: #e53e3e;
+  background: rgba(254, 215, 215, 0.3);
+}
+
+.button-group {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 15px;
+}
+
+button {
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  background: #ff8fa3;
+  color: white;
+  font-size: 14px;
+}
+
+button:hover:not([disabled]) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 143, 163, 0.3);
+}
+
+button.red {
+  background: #ff6b8b;
+}
+
+button[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.soft-limit {
+  font-size: 12px;
+  color: #ff8fa3;
+  margin-left: 8px;
+}
+
+#qrcodeContainer {
+  text-align: center;
+  margin: 15px auto;
+  padding: 15px;
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 2px 8px rgba(255, 182, 193, 0.2);
+  width: fit-content;
+}
+
+#qrcode {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#qrcode img {
+  display: block;
+  margin: 0 auto;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.input-with-button {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.input-with-button input {
+  flex: 1;
+  min-width: 0;
+}
+
+.input-with-button button {
+  white-space: nowrap;
+  padding: 6px 12px;
+  height: 30px;
+}
+
+.settings input {
+  height: 30px;
+  box-sizing: border-box;
+} 
