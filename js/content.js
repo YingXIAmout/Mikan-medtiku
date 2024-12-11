@@ -8,6 +8,87 @@ const STRENGTH_INCREASE_AMOUNT = 2;        // 每次增加2点强度
 // 添加一个用于追踪最近使用过的消息的变量
 let recentMessages = [];
 
+// 为每个通道添加最后更新时间和实际值
+let lastUpdate = {
+    A: { time: 0, actualValue: 0 },
+    B: { time: 0, actualValue: 0 }
+};
+const UPDATE_THROTTLE = 500; // 500ms内只更新一次
+
+// 添加惩罚对话集合
+const PUNISHMENT_MESSAGES = [
+    "哼哼～这点惩罚可不够呢～想要更多吗？",
+    "啊～又做错了呢，该好好惩罚一下了～",
+    "诶嘿～这就是错误的代价哦～",
+    "呜呜～怎么又错了，要加倍惩罚才行呢～",
+    "笨笨的～这样下去会被玩坏的哦～",
+    "嘻嘻～这么喜欢被惩罚吗？",
+    "啊啦啦～看来还需要更多管教呢～",
+    "不乖的孩子就要接受惩罚哦～",
+    "真是个小笨蛋呢，这么简单都能错～",
+    "呐呐～这样的惩罚还受得了吗？",
+    "哎呀～又要惩罚你了呢～",
+    "这么喜欢犯错的话，人家就不客气了哦～"
+];
+
+// 添加奖励对话集合
+const REWARD_MESSAGES = [
+    "真棒呢～这次就稍微奖励一下吧～",
+    "啊～太厉害了呢～",
+    "诶嘿～做得好棒，要给奖励哦～",
+    "呜呜～好厉害，让人家好感动～",
+    "真是个天才呢～这题都能做对～",
+    "嘻嘻～乖孩子就要给糖吃哦～",
+    "啊啦啦～看来进步了呢～",
+    "好孩子值得奖励呢～",
+    "真是太聪明了，这么快就做对了～",
+    "呐呐～这样的奖励喜欢吗？",
+    "做得不错呢～让人家好开心～",
+    "真是个优秀的孩子呢～"
+];
+
+// 修改强度上升的消息数组
+const STRENGTH_INCREASE_MESSAGES = [
+    "哼哼～强度要上升了哦～",
+    "啊啦～变得更强了呢～还能继续吗？",
+    "还不够呢～让人家继续加强吧～",
+    "这样的强度还不够呢～再增加一点～",
+    "乖巧的孩子要接受更多惩罚呢～",
+    "感受到了吗？人家在慢慢加重哦～",
+    "这点程度应该还可以继续吧？",
+    "嘻嘻～让我们再增加一点点～",
+    "呐呐～强度又要提升了呢～",
+    "人家温柔地增加强度中～",
+    "时间越久越舒服对吧～",
+    "让人家帮你调高一点呢～"
+];
+
+// 添加消息历史记录
+const messageHistory = {
+    punishment: [],
+    reward: [],
+    increase: []
+};
+
+// 封装随机消息选择函数
+function getRandomMessage(type) {
+    let messages;
+    switch(type) {
+        case 'punishment':
+            messages = PUNISHMENT_MESSAGES;
+            break;
+        case 'reward':
+            messages = REWARD_MESSAGES;
+            break;
+        case 'increase':
+            messages = STRENGTH_INCREASE_MESSAGES;
+            break;
+    }
+
+    // 直接随机选择一条消息
+    return messages[Math.floor(Math.random() * messages.length)];
+}
+
 // 创建强度显示
 function createStrengthDisplay() {
     const display = document.createElement('div');
@@ -41,7 +122,7 @@ function createStrengthDisplay() {
         font-size: 15px;
         letter-spacing: 1px;
     `;
-    title.innerHTML = '💗 主人的小玩具 💗';
+    title.innerHTML = '💗 小玩具状态 💗';
 
     const channelA = createChannelDisplay('A通道', 'strength-a');
     const channelB = createChannelDisplay('B通道', 'strength-b');
@@ -170,7 +251,7 @@ function startStrengthIncrease() {
     let lastIncrease = 0;
     let timeDisplay = document.getElementById('time-elapsed');
 
-    // 每秒更新时间显示
+    // 每更新时间显示
     setInterval(() => {
         const elapsed = Date.now() - startTime;
         timeDisplay.textContent = Math.floor(elapsed / 1000);
@@ -181,7 +262,7 @@ function startStrengthIncrease() {
         type: 'START_PULSE'
     });
 
-    // 每60秒发送一次脉冲
+    // 每60秒发送次脉冲
     setInterval(() => {
         chrome.runtime.sendMessage({ 
             type: 'START_PULSE'
@@ -194,29 +275,7 @@ function startStrengthIncrease() {
         const newIncrease = calculateStrengthIncrease(elapsed);
         
         if (newIncrease > lastIncrease) {
-            const messages = [
-                "哼哼～强度又要上升了呢～",
-                "啊啦～变得更强了呢～能承受住吗？",
-                "还不够哦～让我们继续增加吧～",
-                "这样的强度还满足不了主人呢～",
-                "乖巧的孩子就要接受更多惩罚呢～",
-                "感受到了吗？主人在慢慢加重呢～",
-                "这点程度应该还可以继续吧？",
-                "真乖～让我们再增加一点点～",
-                "还不够呢～再稍微加强一些吧～",
-                "主人很温柔的在增加强度哦～"
-            ];
-
-            let message;
-            do {
-                message = messages[Math.floor(Math.random() * messages.length)];
-            } while (recentMessages.includes(message) && recentMessages.length < messages.length);
-
-            recentMessages.push(message);
-            if (recentMessages.length > 3) {
-                recentMessages.shift();
-            }
-
+            const message = getRandomMessage('increase');
             showNotification('info', message);
             lastIncrease = newIncrease;
         }
@@ -235,7 +294,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         updateStrengthWithAnimation(document.getElementById('strength-b'), message.strength.B || 0);
     }
     else if (message.type === 'SHOW_NOTIFICATION') {
-        showNotification(message.notificationType, message.message);
+        if (message.notificationType === 'PUNISHMENT') {
+            showPunishmentMessage();
+        } else if (message.notificationType === 'REWARD') {
+            showRewardMessage();
+        }
     }
 });
 
@@ -313,10 +376,35 @@ function showNotification(type, message) {
     setTimeout(() => notification.remove(), 3000);
 }
 
-// 添加数值更新动画函数
+// 修改强度更新函数
 function updateStrengthWithAnimation(element, newValue) {
+    const channel = element.id === 'strength-a' ? 'A' : 'B';
+    const now = Date.now();
+
+    // 记录实际值
+    lastUpdate[channel].actualValue = newValue;
+
+    // 检查是否需要节流
+    if (now - lastUpdate[channel].time < UPDATE_THROTTLE) {
+        // 在节流时间内，设置一个定时器在结束后检查值
+        if (!lastUpdate[channel].timeoutId) {
+            lastUpdate[channel].timeoutId = setTimeout(() => {
+                lastUpdate[channel].timeoutId = null;
+                // 检查显示值是否与实际值一致
+                const displayValue = parseInt(element.textContent);
+                if (displayValue !== lastUpdate[channel].actualValue) {
+                    updateStrengthWithAnimation(element, lastUpdate[channel].actualValue);
+                }
+            }, UPDATE_THROTTLE);
+        }
+        return;
+    }
+
     const oldValue = parseInt(element.textContent);
     if (oldValue === newValue) return;
+
+    // 更新最后更新时间
+    lastUpdate[channel].time = now;
 
     // 添加缩放动画
     element.style.transform = 'scale(1.2)';
@@ -324,10 +412,10 @@ function updateStrengthWithAnimation(element, newValue) {
 
     // 根据数值变化设置颜色
     if (newValue > oldValue) {
-        element.style.color = '#f43f5e';  // 增加时显示亮粉色
-        element.style.textShadow = '0 0 8px rgba(244, 63, 94, 0.5)';  // 添加发光效果
+        element.style.color = '#f43f5e';
+        element.style.textShadow = '0 0 8px rgba(244, 63, 94, 0.5)';
     } else if (newValue < oldValue) {
-        element.style.color = '#22c55e';  // 减少时显示绿色
+        element.style.color = '#22c55e';
         element.style.textShadow = '0 0 8px rgba(34, 197, 94, 0.5)';
     }
 
@@ -394,7 +482,7 @@ function initialize() {
 function initializeAfterLoad() {
     console.log('[Content] DOM已加载，开始创建UI');
     
-    // 检查是否在题目页面
+    // 检测是否在题目页面
     if (window.location.pathname.includes('/problems/')) {
         console.log('[Content] 检测到题目页面');
         createStrengthDisplay();
@@ -402,6 +490,17 @@ function initializeAfterLoad() {
     } else {
         console.log('[Content] 不是题目页面，跳过初始化');
     }
+}
+
+// 修改显示消息的函数
+function showPunishmentMessage() {
+    const message = getRandomMessage('punishment');
+    showNotification('error', message);
+}
+
+function showRewardMessage() {
+    const message = getRandomMessage('reward');
+    showNotification('success', message);
 }
 
 // 启动初始化

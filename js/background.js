@@ -56,11 +56,12 @@ function setStrength(strengthA, strengthB) {
 
 // 修改 executePunishment 函数
 function executePunishment() {
+    isInPunishment = true;
     console.log('[Background] 开始执行惩罚');
     wrongAnswerCount++;
 
-    // 计算惩罚级别（0-4）
-    const level = Math.min(wrongAnswerCount - 1, MAX_PUNISHMENT_LEVEL - 1);
+    // 直接使用 wrongAnswerCount 作为级别，但不超过最大级别
+    const level = Math.min(wrongAnswerCount, MAX_PUNISHMENT_LEVEL) - 1;
     const config = PUNISHMENT_CONFIGS[level];
 
     console.log('[Background] 当前惩罚配置:', {
@@ -69,41 +70,21 @@ function executePunishment() {
         config
     });
 
-    // 保存当前强度
-    const originalStrengthA = channelStrength.A;
-    const originalStrengthB = channelStrength.B;
-
+    // 计算惩罚增加的强度差值
+    const strengthDiffA = Math.min(config.strength,softLimits.A) - channelStrength.A;
+    const strengthDiffB = Math.min(config.strength,softLimits.B) - channelStrength.B;
     // 直接设置惩罚强度
     setStrength(config.strength, config.strength);
 
-    // // 发送波形数据
-    // const waveDataA = {
-    //     type: "clientMsg",
-    //     message: `A:${waveData[channelWaves.A]}`,
-    //     time: config.duration,
-    //     channel: "A"
-    // };
-    // sendWsMessage(waveDataA);
-
-    // const waveDataB = {
-    //     type: "clientMsg",
-    //     message: `B:${waveData[channelWaves.B]}`,
-    //     time: config.duration,
-    //     channel: "B"
-    // };
-    // sendWsMessage(waveDataB);
-
-    // 在惩罚结束后恢复原强度
+    // 在惩罚结束后减去增加的强度
     setTimeout(() => {
-        console.log('[Background] 惩罚结束，恢复原强度:', {
-            A: originalStrengthA,
-            B: originalStrengthB
+        console.log('[Background] 惩罚结束，减去惩罚增加的强度:', {
+            strengthDiffA,
+            strengthDiffB
         });
-        // 直接设置回原强度
-        setStrength(originalStrengthA, originalStrengthB);
-        // 如果将来需要为惩罚切换不同的波形
-        // 此处需要重新发一个一般的波形
-        // pass
+        // 使用 adjustStrength 减去增加的强度
+        setStrength(channelStrength.A - strengthDiffA, channelStrength.B - strengthDiffB);
+        isInPunishment = false;
     }, config.duration * 1000);
 }
 
@@ -178,6 +159,11 @@ function connectWebSocket() {
                 channelStrength.B = strengthB;
                 softLimits.A = softLimitA;
                 softLimits.B = softLimitB;
+                console.log('[Background] 来自设备的更新强度和软限制:', {
+                    A: channelStrength.A,
+                    B: channelStrength.B,
+                    softLimits: softLimits
+                });
                 broadcastStatus();
             }
         } catch (e) {
@@ -264,20 +250,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         connectWebSocket();
         sendResponse({ status: 'reconnecting' });
     }
-    else if (message.type === 'WRONG_ANSWER') {
-        console.log('[Background] 收到错误答案通知');
-        executePunishment();
-        sendResponse({
-            status: 'punishment_executed',
-            level: wrongAnswerCount,
-            timestamp: new Date().toISOString()
-        });
-    }
-    else if (message.type === 'REWARD') {
-        console.log('[Background] 收到奖励请求');
-        adjustStrength(-message.amount);  // 使用负数来减少强度
-        sendResponse({ status: 'reward_executed' });
-    }
+    // else if (message.type === 'WRONG_ANSWER') {
+    //     console.log('[Background] 收到错误答案通知');
+    //     executePunishment();
+    //     sendResponse({
+    //         status: 'punishment_executed',
+    //         level: wrongAnswerCount,
+    //         timestamp: new Date().toISOString()
+    //     });
+    // }
+    // else if (message.type === 'REWARD') {
+    //     console.log('[Background] 收到奖励请求');
+    //     adjustStrength(-message.amount);  // 用负数来减少强度
+    //     sendResponse({ status: 'reward_executed' });
+    // }
     else if (message.type === 'UPDATE_WS_URL') {
         const newUrl = message.url;
         if (!newUrl) {
@@ -437,8 +423,7 @@ chrome.webRequest.onCompleted.addListener(
                                 if (tabs[0]) {
                                     chrome.tabs.sendMessage(tabs[0].id, { 
                                         type: 'SHOW_NOTIFICATION',
-                                        notificationType: 'error',
-                                        message: '哼哼～这点惩罚可不够呢～想要更多吗？'
+                                        notificationType: 'PUNISHMENT',
                                     });
                                 }
                             });
@@ -450,8 +435,7 @@ chrome.webRequest.onCompleted.addListener(
                                 if (tabs[0]) {
                                     chrome.tabs.sendMessage(tabs[0].id, { 
                                         type: 'SHOW_NOTIFICATION',
-                                        notificationType: 'success',
-                                        message: '真棒呢～这次就稍微奖励一下吧～'
+                                        notificationType: 'REWARD',
                                     });
                                 }
                             });
@@ -470,3 +454,19 @@ chrome.webRequest.onCompleted.addListener(
         urls: ["https://leetcode.cn/submissions/detail/*/check/"]
     }
 );
+
+// 添加 webNavigation 监听器
+chrome.webNavigation.onCommitted.addListener((details) => {
+    // 只处理主框架的导航事件
+    if (details.frameId === 0 && details.url.includes('leetcode.cn')) {
+        // 通过 transitionType 和 transitionQualifiers 判断是否是用户刷新
+        const isRefresh = details.transitionType === 'reload' || 
+                         details.transitionQualifiers.includes('client_redirect');
+        
+        if (isRefresh) {
+            console.log('[Background] 用户刷新了 LeetCode 页面，重置错误计数');
+            wrongAnswerCount = 0;
+        }
+        setStrength(0, 0);
+    }
+});

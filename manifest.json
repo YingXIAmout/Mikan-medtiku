@@ -9,7 +9,8 @@
   },
   "permissions": [
     "webRequest",
-    "storage"
+    "storage",
+    "webNavigation"
   ],
   "host_permissions": [
     "https://analysis.leetcode.cn/*",
