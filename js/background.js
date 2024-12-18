@@ -20,9 +20,54 @@ const PUNISHMENT_CONFIGS = [
 const waveData = {
     "1": `["0A0A0A0A00000000","0A0A0A0A0A0A0A0A","0A0A0A0A14141414","0A0A0A0A1E1E1E1E","0A0A0A0A28282828","0A0A0A0A32323232","0A0A0A0A3C3C3C3C","0A0A0A0A46464646","0A0A0A0A50505050","0A0A0A0A5A5A5A5A","0A0A0A0A64646464"]`,
     "2": `["0A0A0A0A00000000","0D0D0D0D0F0F0F0F","101010101E1E1E1E","1313131332323232","1616161641414141","1A1A1A1A50505050","1D1D1D1D64646464","202020205A5A5A5A","2323232350505050","262626264B4B4B4B","2A2A2A2A41414141"]`,
-    "3": `["4A4A4A4A64646464","4545454564646464","4040404064646464","3B3B3B3B64646464","3636363664646464","3232323264646464","2D2D2D2D64646464","2828282864646464","2323232364646464","1E1E1E1E64646464","1A1A1A1A64646464"]`
+    "3": `["4A4A4A4A64646464","4545454564646464","4040404064646464","3B3B3B3B64646464","3636363664646464","3232323264646464","2D2D2D2D64646464","2828282864646464","2323232364646464","1E1E1E1E64646464","1A1A1A1A64646464"]`,
+    "4": createWaveData(),
+    "5": createWaveData(),
+    "6": createWaveData()
 };
+// 频率换算函数，根据文档给定算法将输入值换算为实际发送的频率值
+function convertFreq(inputFreq) {
+    if (inputFreq >= 10 && inputFreq <= 100) {
+        return inputFreq;
+    } else if (inputFreq >= 101 && inputFreq <= 600) {
+        return (inputFreq - 100) / 5 + 100;
+    } else if (inputFreq >= 601 && inputFreq <= 1000) {
+        return (inputFreq - 600) / 10 + 200;
+    }
+    return 10;
+}
+// 生成指定范围随机数
+function getRandomInt(min, max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min + 1) + min);
+}
+// 函数将单个频率和强度值转换为对应字节数据格式（十六进制字符串表示）
+function convertToBytes(freq, strength) {
+    // 先对频率进行换算
+    const actualFreq = convertFreq(freq);
+    // 将频率和强度转换为十六进制字符串（确保两位）
+    const freqHex = actualFreq.toString(16).padStart(2, '0').toUpperCase();
+    const strengthHex = strength.toString(16).padStart(2, '0').toUpperCase();
+    return freqHex + freqHex + freqHex + freqHex + strengthHex + strengthHex + strengthHex + strengthHex;
+}
+//生成随机波形
+function createWaveData(){
+    const rand = 11
+    const freqArray = []; 
+    const strengthArray = []; 
+    for (let r = 0; r < rand; r++) {
+        freqArray.push(getRandomInt(10,80));
+        strengthArray.push(getRandomInt(0,100));
+    }
 
+    const resultBytesArray = [];
+    for (let i = 0; i < freqArray.length; i++) {
+        const bytes = convertToBytes(freqArray[i], strengthArray[i]);
+        resultBytesArray.push(bytes);
+    }
+    return JSON.stringify(resultBytesArray);
+}
 // 在文件开头添加波形设置的存储
 let channelWaves = {
     A: "1",  // 默认使用轻度波形
