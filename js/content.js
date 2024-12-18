@@ -2,8 +2,8 @@ console.log('[Content] 脚本开始加载');
 
 // 状态变量
 let strengthIncreaseInterval = null;
-const STRENGTH_INCREASE_INTERVAL = 30000;  // 每30秒增加一次强度
-const STRENGTH_INCREASE_AMOUNT = 2;        // 每次增加2点强度
+const STRENGTH_INCREASE_INTERVAL = 3000;  // 每3秒增加一次强度
+let STRENGTH_INCREASE_AMOUNT = 0;        // 初始增长强度为0
 
 // 添加一个用于追踪最近使用过的消息的变量
 let recentMessages = [];
@@ -225,30 +225,32 @@ function createTimerDisplay() {
 
 // 修改强度增长曲线函数
 function calculateStrengthIncrease(elapsed) {
-    const minutes = elapsed / 60000;  // 转换为分钟
+    const minutes = Math.round(elapsed/ 1000);  // 转换为秒
     let increase;
     
-    if (minutes <= 5) {
-        // 前5分钟，快速起步
-        increase = minutes * 2;  // 每分钟增加2点
-    } else if (minutes <= 15) {
-        // 5-15分钟，加速增长
-        increase = 10 + (minutes - 5) * 3;  // 从10点开始，每分钟增加3点
-    } else {
-        // 15分钟后，指数增长
-        increase = 40 + Math.pow(minutes - 15, 1.5) * 2;  // 从40点开始，指数增长
+    if (minutes < 10) {
+        // 10秒前不惩罚
+        increase = 0;  // 每分钟增加2点
+    } else if (minutes >= 10 && minutes < 20) {
+        // 10秒-20秒，速率2
+        increase = 2;
+    } else if (minutes >= 20 && minutes < 30) {
+        // 20秒后 速率5
+        increase = 5
+    } else if (minutes >= 30 && minutes < 60) {
+        increase = 10;
+    } else if ( minutes >= 60) {
+        increase = 100
     }
-    
-    // 确保增长不会超过上限
-    return Math.min(Math.round(increase), 100);
+    return increase
 }
-
+// 设置答题开始时间
+let startTime = Date.now();
+let lastIncrease = 0;
 // 修改 startStrengthIncrease 函数
 function startStrengthIncrease() {
     if (strengthIncreaseInterval) return;
 
-    let startTime = Date.now();
-    let lastIncrease = 0;
     let timeDisplay = document.getElementById('time-elapsed');
 
     // 每更新时间显示
@@ -273,35 +275,20 @@ function startStrengthIncrease() {
     strengthIncreaseInterval = setInterval(() => {
         const elapsed = Date.now() - startTime;
         const newIncrease = calculateStrengthIncrease(elapsed);
-        
+        const message = getRandomMessage('increase');
         if (newIncrease > lastIncrease) {
-            const message = getRandomMessage('increase');
             showNotification('info', message);
+            STRENGTH_INCREASE_AMOUNT = newIncrease;
             lastIncrease = newIncrease;
         }
-
-        chrome.runtime.sendMessage({ 
+        chrome.runtime.sendMessage({
             type: 'INCREASE_STRENGTH',
             amount: STRENGTH_INCREASE_AMOUNT
         });
     }, STRENGTH_INCREASE_INTERVAL);
+
 }
-
-// 监听来自 background 的消息
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'STRENGTH_UPDATE') {
-        updateStrengthWithAnimation(document.getElementById('strength-a'), message.strength.A || 0);
-        updateStrengthWithAnimation(document.getElementById('strength-b'), message.strength.B || 0);
-    }
-    else if (message.type === 'SHOW_NOTIFICATION') {
-        if (message.notificationType === 'PUNISHMENT') {
-            showPunishmentMessage();
-        } else if (message.notificationType === 'REWARD') {
-            showRewardMessage();
-        }
-    }
-});
-
+/**/
 // 添加提示显示函数
 function showNotification(type, message) {
     const notification = document.createElement('div');
@@ -483,7 +470,7 @@ function initializeAfterLoad() {
     console.log('[Content] DOM已加载，开始创建UI');
     
     // 检测是否在题目页面
-    if (window.location.pathname.includes('/problems/')) {
+    if (window.location.pathname.includes('/app')) {
         console.log('[Content] 检测到题目页面');
         createStrengthDisplay();
         startStrengthIncrease();
@@ -503,5 +490,188 @@ function showRewardMessage() {
     showNotification('success', message);
 }
 
+
+let previousHasWrongAnswer = false; // 用于保存上一题是否存在wronganswer类的selectItem元素
+let previousHasRightAnswer = false; // 用于保存上一题是否存在rightanswer类的selectItem元素
+// 定义一个函数来检查元素是否符合条件，和之前类似，但这里是在内容脚本里直接操作DOM
+function checkSelectItemElements() {
+    const selectItems = document.querySelectorAll('.selectItem');
+    let hasWrongAnswer = false;
+    let hasRightAnswer = false;
+    selectItems.forEach((item) => {
+        if (item.classList.contains('wronganswer')) {
+            hasWrongAnswer = true;
+            previousHasWrongAnswer = true;
+        }else if (item.classList.contains('rightanswer')) {
+            hasRightAnswer = true;
+            previousHasWrongAnswer = true;
+        }
+    });
+    return { hasWrongAnswer , hasRightAnswer };
+}
+
+// 监听页面加载完成事件（对于初始内容），加载完成后发送消息告知后台脚本
+window.addEventListener('load', () => {
+    let isQuizContainerExist = false; // 标记是否存在id为quiz的容器元素
+    let isSelectItemClickEventLoaded = false; // 用于标记是否已经为selectItem元素挂载过点击事件
+    // 启动监听，当且为题目页面时为选项挂载点击事件
+    const observer = new MutationObserver((mutationsList) => {
+        mutationsList.forEach((mutation) => {
+            if (mutation.type === 'childList' || mutation.type === 'attributes') {
+                const targetContainer = document.getElementById('quiz');
+                const quizControlUl = document.querySelector('ul.quiz-control');
+                if (targetContainer &&!isQuizContainerExist) {
+                    // 当首次发现quiz容器存在时
+                    isQuizContainerExist = true;
+                    initSelectItemClickEvents(targetContainer); // 调用函数初始化挂载点击事件
+                    initNextQuestionLiClickEvent(quizControlUl); // 调用函数初始化“下一题”li元素点击事件
+                    isSelectItemClickEventLoaded = true;
+                } else if (!targetContainer && isQuizContainerExist) {
+                    // 当quiz容器消失时（可根据实际需求添加相应处理逻辑，这里简单重置标记）
+                    isQuizContainerExist = false;
+                    isSelectItemClickEventLoaded = false;
+                } else if (targetContainer && isQuizContainerExist) {
+                    // 当quiz容器存在且之前已发现过，重新挂载所有selectItem元素的点击事件以及更新“下一题”li元素点击事件
+                    initSelectItemClickEvents(targetContainer);
+                    initNextQuestionLiClickEvent(quizControlUl);
+                }
+            }
+        });
+    });
+
+    const config = { attributes: true, childList: true, subtree: true };
+    observer.observe(document.documentElement, config);
+    //点击答案选项事件触发的函数
+    function initSelectItemClickEvents(container) {
+        const selectItems = container.querySelectorAll('.selectItem');
+        selectItems.forEach((item) => {
+            if (!item.hasAttribute('data-click-event-loaded')) {
+                item.addEventListener('click', function (event) {
+                    if (!previousHasRightAnswer &&!previousHasWrongAnswer){
+                        event.stopPropagation();
+                        const result = checkSelectItemElements();
+                        chrome.runtime.sendMessage({
+                            type: 'CHECK_ELEMENTS_RESULT',
+                            result
+                        });
+                        previousHasWrongAnswer = result.hasWrongAnswer; // 用于保存上一题是否存在wronganswer类的selectItem元素
+                        previousHasRightAnswer = result.hasRightAnswer;
+                        startTime = Date.now();
+                        lastIncrease = 0;
+                        STRENGTH_INCREASE_AMOUNT = 0;
+                    }
+                });
+                if (previousHasRightAnswer) {
+                    const result = checkSelectItemElements();
+                    previousHasWrongAnswer = result.hasWrongAnswer; // 用于保存上一题是否存在wronganswer类的selectItem元素
+                    previousHasRightAnswer = result.hasRightAnswer;
+                }
+                item.setAttribute('data-click-event-loaded', 'true');
+            }
+        });
+    }
+    //点击切换题目选项和显示答案选项触发的函数
+    function initNextQuestionLiClickEvent(quizControlUl) {
+        if (quizControlUl) {
+            const lis = quizControlUl.querySelectorAll('li');
+            lis.forEach((li) => {
+                if (li.textContent.trim() === '下一题' &&!li.hasAttribute('data-click-event-loaded')) {
+                    li.addEventListener('click', function (event) {
+                        event.stopPropagation();
+                        if (!previousHasWrongAnswer && !previousHasRightAnswer) {
+                            const result = { hasWrongAnswer: true };
+                            chrome.runtime.sendMessage({
+                                type: 'CHECK_ELEMENTS_RESULT',
+                                result
+                            });
+                        }else{
+                            previousHasWrongAnswer = false;
+                            previousHasRightAnswer = false;
+                        }
+                        startTime = Date.now();
+                        lastIncrease = 0;
+                        STRENGTH_INCREASE_AMOUNT = 0;
+                    });
+                    li.setAttribute('data-click-event-loaded', 'true');
+                }else if (li.textContent.trim() === "显示答案" && !li.hasAttribute('data-click-event-loaded')) {
+                    li.addEventListener('click', function (event) {
+                        event.stopPropagation();
+                        const result = { hasWrongAnswer: true };
+                        chrome.runtime.sendMessage({
+                            type: 'CHECK_ELEMENTS_RESULT',
+                            result
+                        });
+                        previousHasWrongAnswer = true;
+                        startTime = Date.now();
+                        lastIncrease = 0;
+                        STRENGTH_INCREASE_AMOUNT = 0;
+                    })
+                    li.setAttribute('data-click-event-loaded', 'true');
+                }else if (li.textContent.trim() === "上一题" && !li.hasAttribute('data-click-event-loaded')) {
+                    li.addEventListener('click', function (event) {
+                        event.stopPropagation();
+                        const result = checkSelectItemElements();
+                        if (result.hasWrongAnswer || result.hasRightAnswer) {
+                        }else {
+                            previousHasWrongAnswer = false;
+                            previousHasRightAnswer = false;
+                        }
+                        startTime = Date.now();
+                        lastIncrease = 0;
+                        STRENGTH_INCREASE_AMOUNT = 0;
+                    })
+                    li.setAttribute('data-click-event-loaded', 'true');
+                }
+            });
+        }
+    }
+});
+// 接收来自后台脚本的消息并根据消息类型执行相应操作
+chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
+    if (message.type === 'CHECK_ELEMENTS_INITIAL') {
+        const result = checkSelectItemElements();
+        // 将初始检查结果发送回后台脚本
+        chrome.runtime.sendMessage({
+            type: 'CHECK_ELEMENTS_RESULT',
+            result
+        });
+    } else if (message.type === 'CHECK_ELEMENTS_ON_CHANGE') {
+        const result = checkSelectItemElements();
+        // 将DOM变化后的检查结果发送回后台脚本
+        chrome.runtime.sendMessage({
+            type: 'CHECK_ELEMENTS_RESULT',
+            result
+        });
+    } else if (message.type === 'CHECK_ELEMENTS_AFTER_REQUEST') {
+        // 这里可以根据后台脚本传递的url等信息模拟获取响应内容并检查元素（类似之前直接拦截请求的逻辑简化处理）
+        fetch(message.url)
+            .then(response => response.text())
+            .then(responseText => {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = responseText;
+                document.body.appendChild(tempDiv);
+                const result = checkSelectItemElements();
+                tempDiv.remove();
+                // 将请求相关检查结果发送回后台脚本
+                chrome.runtime.sendMessage({
+                    type: 'CHECK_ELEMENTS_RESULT',
+                    result
+                });
+            })
+            .catch(e => {
+                console.error('[Content] 处理响应内容失败:', e);
+            });
+    } else if (message.type === 'STRENGTH_UPDATE') {
+        updateStrengthWithAnimation(document.getElementById('strength-a'), message.strength.A || 0);
+        updateStrengthWithAnimation(document.getElementById('strength-b'), message.strength.B || 0);
+    }
+    else if (message.type === 'SHOW_NOTIFICATION') {
+        if (message.notificationType === 'PUNISHMENT') {
+            showPunishmentMessage();
+        } else if (message.notificationType === 'REWARD') {
+            showRewardMessage();
+        }
+    }
+});
 // 启动初始化
 initialize();
