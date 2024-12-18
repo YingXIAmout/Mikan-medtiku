@@ -9,21 +9,18 @@ let softLimits = { A: 0, B: 0 };
 
 // 在文件开头添加
 const PUNISHMENT_CONFIGS = [
-    { strengthPercentage: 0.2, duration: 3, wave: "1" },    // 级别 1: 3秒
-    { strengthPercentage: 0.35, duration: 5, wave: "1" },    // 级别 2: 5秒
-    { strengthPercentage: 0.5, duration: 8, wave: "2" },    // 级别 3: 8秒
-    { strengthPercentage: 0.65, duration: 10, wave: "2" },   // 级别 4: 10秒
-    { strengthPercentage: 0.8, duration: 15, wave: "3" }    // 级别 5: 15秒
+    { strength: 20, duration: 3, wave: "1" },    // 级别 1: 3秒
+    { strength: 35, duration: 5, wave: "1" },    // 级别 2: 5秒
+    { strength: 50, duration: 8, wave: "2" },    // 级别 3: 8秒
+    { strength: 65, duration: 10, wave: "2" },   // 级别 4: 10秒
+    { strength: 80, duration: 15, wave: "3" }    // 级别 5: 15秒
 ];
 
 // 在文件开头添加
 const waveData = {
     "1": `["0A0A0A0A00000000","0A0A0A0A0A0A0A0A","0A0A0A0A14141414","0A0A0A0A1E1E1E1E","0A0A0A0A28282828","0A0A0A0A32323232","0A0A0A0A3C3C3C3C","0A0A0A0A46464646","0A0A0A0A50505050","0A0A0A0A5A5A5A5A","0A0A0A0A64646464"]`,
     "2": `["0A0A0A0A00000000","0D0D0D0D0F0F0F0F","101010101E1E1E1E","1313131332323232","1616161641414141","1A1A1A1A50505050","1D1D1D1D64646464","202020205A5A5A5A","2323232350505050","262626264B4B4B4B","2A2A2A2A41414141"]`,
-    "3": `["4A4A4A4A64646464","4545454564646464","4040404064646464","3B3B3B3B64646464","3636363664646464","3232323264646464","2D2D2D2D64646464","2828282864646464","2323232364646464","1E1E1E1E64646464","1A1A1A1A64646464"]`,
-    "4": createWaveData(),
-    "5": createWaveData(),
-    "6": createWaveData()
+    "3": `["4A4A4A4A64646464","4545454564646464","4040404064646464","3B3B3B3B64646464","3636363664646464","3232323264646464","2D2D2D2D64646464","2828282864646464","2323232364646464","1E1E1E1E64646464","1A1A1A1A64646464"]`
 };
 
 // 在文件开头添加波形设置的存储
@@ -34,51 +31,6 @@ let channelWaves = {
 
 // 添加脉冲状态
 let isPulsing = false;
-
-// 频率换算函数，根据文档给定算法将输入值换算为实际发送的频率值
-function convertFreq(inputFreq) {
-    if (inputFreq >= 10 && inputFreq <= 100) {
-        return inputFreq;
-    } else if (inputFreq >= 101 && inputFreq <= 600) {
-        return (inputFreq - 100) / 5 + 100;
-    } else if (inputFreq >= 601 && inputFreq <= 1000) {
-        return (inputFreq - 600) / 10 + 200;
-    }
-    return 10;
-}
-// 生成指定范围随机数
-function getRandomInt(min, max) {
-    min = Math.ceil(min);
-    max = Math.floor(max);
-    return Math.floor(Math.random() * (max - min + 1) + min);
-}
-// 函数将单个频率和强度值转换为对应字节数据格式（十六进制字符串表示）
-function convertToBytes(freq, strength) {
-    // 先对频率进行换算
-    const actualFreq = convertFreq(freq);
-    // 将频率和强度转换为十六进制字符串（确保两位）
-    const freqHex = actualFreq.toString(16).padStart(2, '0').toUpperCase();
-    const strengthHex = strength.toString(16).padStart(2, '0').toUpperCase();
-    return freqHex + freqHex + freqHex + freqHex + strengthHex + strengthHex + strengthHex + strengthHex;
-}
-
-function createWaveData(){
-    const rand = getRandomInt(10,12);
-    // 示例用法，假设有一组频率和强度数组（这里模拟4组，对应文档中100ms的数据情况）
-    const freqArray = []; // 示例频率数组，可替换为真实数据
-    const strengthArray = []; // 示例强度数组，可替换为真实数据
-    for (let r = 0; r < rand; r++) {
-        freqArray.push(getRandomInt(10,80));
-        strengthArray.push(getRandomInt(0,100));
-    }
-
-    const resultBytesArray = [];
-    for (let i = 0; i < freqArray.length; i++) {
-        const bytes = convertToBytes(freqArray[i], strengthArray[i]);
-        resultBytesArray.push(bytes);
-    }
-    return JSON.stringify(resultBytesArray);
-}
 
 // 添加一个直接设置强度的函数
 function setStrength(strengthA, strengthB) {
@@ -117,17 +69,12 @@ function executePunishment() {
         level: level + 1,
         config
     });
-    //获取更新值
-    const newStrengthA = Math.round(softLimits.A * config.strengthPercentage);
-    const newStrengthB = Math.round(softLimits.B * config.strengthPercentage);
-    // 计算惩罚增加的强度差值
-    const strengthDiffA = Math.min(newStrengthA,softLimits.A) ;
-    const strengthDiffB = Math.min(newStrengthB,softLimits.B);
-    const setA = Math.min(newStrengthA + channelStrength.A,softLimits.A || 100);
-    const setB = Math.min(newStrengthB + channelStrength.B,softLimits.B || 100);
 
+    // 计算惩罚增加的强度差值
+    const strengthDiffA = Math.min(config.strength,softLimits.A) - channelStrength.A;
+    const strengthDiffB = Math.min(config.strength,softLimits.B) - channelStrength.B;
     // 直接设置惩罚强度
-    setStrength(setA, setB);
+    setStrength(config.strength, config.strength);
 
     // 在惩罚结束后减去增加的强度
     setTimeout(() => {
@@ -135,7 +82,8 @@ function executePunishment() {
             strengthDiffA,
             strengthDiffB
         });
-        setStrength(channelStrength.A- strengthDiffA, channelStrength.B - strengthDiffB);
+        // 使用 adjustStrength 减去增加的强度
+        setStrength(channelStrength.A - strengthDiffA, channelStrength.B - strengthDiffB);
         isInPunishment = false;
     }, config.duration * 1000);
 }
@@ -379,7 +327,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ status: 'wave_saved' });
     }
     else if (message.type === 'INCREASE_STRENGTH') {
-        adtStrength(message.amount);
+        adjustStrength(message.amount);
     }
     // else if (message.type === 'REWARD') {
     //     adjustStrength(-message.amount);  // 注意这里是负数
@@ -414,72 +362,109 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             ws = null;
         }
         broadcastStatus();
-    } else if (message.type === 'CHECK_ELEMENTS_RESULT') {
-        // 收到内容脚本传回的检测结果数据
-        const result = message.result;
-        console.log('[Background] 收到检测结果:', result);
-        // 这里可以根据检测结果进行更多后续处理，比如根据结果决定是否弹出通知等
-        if (result.hasWrongAnswer === true) {
-            console.log('[Background] 检测到存在selectItem变成selectItem wronganswer的情况，可进行相应处理');
-            executePunishment();
-            chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-                if (tabs[0]) {
-                    chrome.tabs.sendMessage(tabs[0].id, {
-                        type: 'SHOW_NOTIFICATION',
-                        notificationType: 'PUNISHMENT',
-                    });
-                }
-            });
-        }else{
-            const amoutA = Math.round(softLimits.A * 0.1)
-            const amoutB = Math.round(softLimits.B * 0.1)
-
-            deljustStrength(amoutA,amoutB);
-            // 发送消息给 content 显示提示
-            chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-                if (tabs[0]) {
-                    chrome.tabs.sendMessage(tabs[0].id, {
-                        type: 'SHOW_NOTIFICATION',
-                        notificationType: 'REWARD',
-                    });
-                    wrongAnswerCount = 0
-                }
-            });
-        }
-
     }
 
     return true;  // 保持消息通道开放
 });
-// 添加强度调整函数（和下面用法一样，不过以百分比模式）
-function adtStrength(amount){
-    //修改传入百分比，设置为软上限百分比
-    const strengthA = Math.round(softLimits.A * (amount/100));
-    const strengthB = Math.round(softLimits.B * (amount/100));
-    channelStrength.A = Math.min(channelStrength.A + strengthA, softLimits.A || 100);
-    channelStrength.B = Math.min(channelStrength.B + strengthB, softLimits.B || 100);
-    setStrength(channelStrength.A, channelStrength.B);
-}
+
 // 添加强度调整函数
-function deljustStrength(amountA,amountB) {
-    // 减少强度
-    channelStrength.A = Math.max(channelStrength.A - amountA, 0);
-    channelStrength.B = Math.max(channelStrength.B - amountB, 0);
-
+function adjustStrength(amount) {
+    if (amount > 0) {
+        // 增加强度，但不超过软上限
+        channelStrength.A = Math.min(channelStrength.A + amount, softLimits.A || 100);
+        channelStrength.B = Math.min(channelStrength.B + amount, softLimits.B || 100);
+    } else {
+        // 减少强度
+        channelStrength.A = Math.max(channelStrength.A + amount, 0);
+        channelStrength.B = Math.max(channelStrength.B + amount, 0);
+    }
     setStrength(channelStrength.A, channelStrength.B);
 }
 
+// 跟踪上次fetch时间
+let lastFetchTime = 0;
+const FETCH_INTERVAL = 5000;  // 5秒间隔
+
+// 修改监听器
+chrome.webRequest.onCompleted.addListener(
+    function (details) {
+        if (details.method === "GET" && details.url.includes('check')) {
+            const now = Date.now();
+            
+            // 如果距离上次fetch不足5秒，忽略这次check
+            if (now - lastFetchTime < FETCH_INTERVAL) {
+                console.log('[Background] 忽略5秒内的重复检查');
+                return;
+            }
+
+            // 记录这次fetch的时间
+            lastFetchTime = now;
+            
+            // 发送fetch请求并处理结果
+            function checkSubmission() {
+                fetch(details.url)
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('[Background] 检查结果:', data);
+                        
+                        // 如果还在进行中，等待后重试
+                        if (data.state === "STARTED") {
+                            console.log('[Background] 提交仍在进行中，1秒后重试');
+                            setTimeout(checkSubmission, 1000);
+                            return;
+                        }
+
+                        // 处理最终结果
+                        if (data.run_success === false) {
+                            console.log('[Background] 检测到提交失败');
+                            executePunishment();
+                            // 发送消息给 content 显示提示
+                            chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+                                if (tabs[0]) {
+                                    chrome.tabs.sendMessage(tabs[0].id, { 
+                                        type: 'SHOW_NOTIFICATION',
+                                        notificationType: 'PUNISHMENT',
+                                    });
+                                }
+                            });
+                        } else if (data.run_success === true) {
+                            console.log('[Background] 检测到提交成功');
+                            adjustStrength(-10);
+                            // 发送消息给 content 显示提示
+                            chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+                                if (tabs[0]) {
+                                    chrome.tabs.sendMessage(tabs[0].id, { 
+                                        type: 'SHOW_NOTIFICATION',
+                                        notificationType: 'REWARD',
+                                    });
+                                }
+                            });
+                        }
+                    })
+                    .catch(e => {
+                        console.error('[Background] 解析响应失败:', e);
+                    });
+            }
+
+            // 开始检查
+            checkSubmission();
+        }
+    },
+    {
+        urls: ["https://leetcode.cn/submissions/detail/*/check/"]
+    }
+);
 
 // 添加 webNavigation 监听器
 chrome.webNavigation.onCommitted.addListener((details) => {
     // 只处理主框架的导航事件
-    if (details.frameId === 0 && details.url.includes('medtiku.com')) {
+    if (details.frameId === 0 && details.url.includes('leetcode.cn')) {
         // 通过 transitionType 和 transitionQualifiers 判断是否是用户刷新
         const isRefresh = details.transitionType === 'reload' || 
                          details.transitionQualifiers.includes('client_redirect');
         
         if (isRefresh) {
-            console.log('[Background] 用户刷新了 Medtiku 页面，重置错误计数');
+            console.log('[Background] 用户刷新了 LeetCode 页面，重置错误计数');
             wrongAnswerCount = 0;
         }
         setStrength(0, 0);
